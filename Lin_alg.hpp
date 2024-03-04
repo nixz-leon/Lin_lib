@@ -5,6 +5,8 @@
 #include<cstdlib>
 using namespace std;
 
+//next step is to add a second optional arg to the template, which i will expand on in a different file for 2by2 3by3 4by4 matricies, I won't add the implimentation just yet, however 
+
 template<class T>
 struct _init_list_with_square_brackets {
     const std::initializer_list<T>& list;
@@ -21,8 +23,6 @@ struct _init_list_with_square_brackets {
 template <typename T> class matrix{
     public:
         matrix(int n, int m);//will inizalize to all 0s
-        matrix(int n, int m, _init_list_with_square_brackets<T> l);
-        matrix(matrix<T> &a);   
         inline void printout();
         inline void set_diag(T c){for(int i = 0; i < rows; i++){data[(i*cols)+i]=c;}};
         inline void row_swap(int row1, int row2);
@@ -102,11 +102,6 @@ template <typename T> class matrix{
             }
             return data[(a*cols)+b];
         };
-        ~matrix(){
-            free(data);
-            rows =0;
-            cols = 0;
-        }
         int rows;
         int cols;
     private:
@@ -116,15 +111,18 @@ template <typename T> class matrix{
 template <typename T>
 inline matrix<T>::matrix(int n, int m)
 {
-    data = (T*)calloc(n*m,sizeof(T));
+    //data = (T*)calloc(n*m,sizeof(T));
+    data = new T[n*m];
     rows = n;
     cols = m;
 };
+/*
 template <typename T>
 inline matrix<T>::matrix(matrix<T> &a){
     rows = a.rows;
     cols = a.cols;
-    data = (T*)calloc(rows * cols, sizeof(T));
+    //data = (T*)calloc(rows * cols, sizeof(T));
+    data = new T[rows*cols];
     for(int i =0; i < a.rows*a.cols; i++){
         data[i] = a.data[i];
     }
@@ -132,14 +130,15 @@ inline matrix<T>::matrix(matrix<T> &a){
 };
 template<class T> 
 inline void matrix<T>::printout(){
+    cout << endl;
     for(int i = 0; i < rows; i++){
         for(int j = 0; j < cols; j++){
             cout << data[(cols*i)+j] << ' ';
         }
         cout << endl;
     }
-    cout << endl;
-};
+
+};*/
 template <typename T>
 inline void matrix<T>::row_swap(int row1, int row2)
 {
@@ -174,7 +173,7 @@ inline void matrix<T>::row_add(int target, int op, T fac)
 template <typename T> class vec{
     public:
         vec(int n);
-        vec(vec<T> &a);
+        //vec(vec<T> &a);
         vec(_init_list_with_square_brackets<T> l);
         inline void printout();
         inline void entry(T *v, int size);
@@ -198,7 +197,7 @@ template <typename T> class vec{
                 data[i] = l[i];
             }
             return *this;
-        }
+        };
         inline friend vec<T> operator+(vec<T> a, vec<T> b){
             vec<T> temp(a.size);
             if(a.size!=b.size){
@@ -209,7 +208,7 @@ template <typename T> class vec{
                 temp(i) = (a(i)+b(i));
             }
             return temp;
-        }
+        };
         inline friend vec<T> operator-(vec<T> a, vec<T> b){
             vec<T> temp(a.size);
             if(a.size!=b.size){
@@ -220,7 +219,7 @@ template <typename T> class vec{
                 temp(i) = (a(i)-b(i));
             }
             return temp;
-        }
+        };
         inline vec<T> operator+=(T c){for(int i = 0; i < this->size;i++){data[i]+=c;}return *this;};
         inline vec<T> operator+=(vec<T> a){for(int i =0; i < this->size;i++){this->data[i] += a(i);}return *this;};
         inline vec<T> operator-=(T c){for(int i = 0; i < this->size;i++){data[i]-=c;}return *this;};
@@ -248,13 +247,13 @@ template <typename T> class vec{
                 cout << "sum:" <<sum << endl;
             }
             return temp;
-        }
+        };
         inline vec<T> operator*=(T scalar){
             for(int i =0; i < this->size; i++){
                 this->data[i] *= scalar;
             }
             return *this;
-        }
+        };
         // x = A/b; system's solver;
         inline T& operator()(int a) {
             if(a > size-1){
@@ -273,10 +272,6 @@ template <typename T> class vec{
                 return data[a];
             }
         };
-        ~vec(){
-            size = 0;
-            free(data);
-        }
         int size;   
     private:
         T *data;
@@ -285,21 +280,23 @@ template <typename T> class vec{
 template <typename T>
 inline vec<T>::vec(int n)
 {
-    data = (T*)calloc(n,sizeof(T));
+    data = new T[n];
     size = n;
 }
+/*
 template <typename T>
 inline vec<T>::vec(vec<T> &a){
     size = a.size;
-    data = (T*)malloc(size*sizeof(T));
+    data  = new T[size];
     for(int i =0; i < size; i++){
         data[i] = a.data[i];
     }
 }
+*/
 template <typename T>
 inline vec<T>::vec(_init_list_with_square_brackets<T> l) {
     size = l.size();
-    data = (T*)malloc(size*sizeof(T));
+    data = new T[size];
     for(int i =0; i < size; i++){
         data[i] = l[i];
     }
@@ -321,6 +318,27 @@ inline T norm1(vec<T> a){
     }
     return sum;
 };
+
+template <typename T> 
+inline void gausian_reduction(matrix<T> &a){
+    int biggest_row;
+    for(int i =0; i < a.cols;i++){
+        biggest_row = i;
+        for(int j = i+1; j < a.rows;j++){
+            if(a(j,i) > a(biggest_row,i)){
+                biggest_row = j;
+            }
+        }
+        a.row_swap(biggest_row, i);
+    }
+    //gaussian elimination to ref
+    for(int i = 0; i < a.rows;i++ ){
+        for(int j = i+1; j <a.cols;j++){
+            T m = (a(j,i)/a(i,i))*(-1.f);
+            a.row_add(j,i,m);
+        }
+    }
+}
 
 template <typename T> 
 inline vec<T> lin_solver(matrix<T> a, vec<T> b){
@@ -563,7 +581,6 @@ inline matrix<T> alt_house_holder(vec<T> a, int c){
         A(i,i) += 1;
     }
     return A;
-
 }
 
 
@@ -684,7 +701,9 @@ inline T AB4(T (*f)(T,T), T h, T a, T b, T inital){
         
     }
     //loop time
-    for()
+    for(int a =0; a < 10; a++){
+
+    }
 }
 
 template <typename T>
