@@ -1,9 +1,11 @@
 #pragma once
 #include <iostream>
+#include <fstream>
+#include <vector>
 #include <cmath>
 #include <string>
 #include<cstdlib>
-using namespace std;
+#include <chrono>
 
 //next step is to add a second optional arg to the template, which i will expand on in a different file for 2by2 3by3 4by4 matricies, I won't add the implimentation just yet, however 
 
@@ -17,37 +19,45 @@ struct _init_list_with_square_brackets {
     int size(){
         return list.size();
     }
+
 };
 
 
 template <typename T> class matrix{
     public:
-        matrix(int n, int m);//will inizalize to all 0s
+        matrix(int n, int m);
+        matrix(matrix<T> &a);
+        matrix(_init_list_with_square_brackets<T> l, int rows, int col);
         inline void printout();
         inline void set_diag(T c){for(int i = 0; i < rows; i++){data[(i*cols)+i]=c;}};
         inline void row_swap(int row1, int row2);
         inline void row_add(int target, int op, T fac);
         inline matrix<T> operator=(matrix<T> a) noexcept
         {
+            matrix<T> temp(a.cols,a.rows);
             for(int i = 0; i < a.rows*a.cols; i ++){
-                this->data[i] = a.data[i];
+                temp.data[i] = a.data[i];
             }
-            return *this;
+            return temp;
         };
-        inline matrix<T> operator=(_init_list_with_square_brackets<T> l) noexcept{
+        
+        /*inline matrix<T> operator=(_init_list_with_square_brackets<T> l) noexcept{
             if(l.size() != rows*cols){
-                cerr << "list wrong size" << endl;
-                return *this;
+                std::cerr << "list wrong size" << '\n';
+                std::abort;
             }
+            matrix<T> temp;
+            temp.data = new T[l.size()];
             for(int i = 0; i < l.size(); i ++){
-                data[i] = l[i];
+                temp.data[i] = l[i];
             }
-            return *this;
+            return temp;
         }
+        */
         inline friend matrix<T> operator*(matrix<T> a, matrix<T> b){
             matrix<T> temp(a.rows, b.cols);
             if((a.cols!=b.rows)){
-                cerr << "dim mis match" << endl;
+                std::cerr << "dim mis match" << '\n';
                 return temp;
             }
             for(int i = 0; i < a.rows; i++){
@@ -78,7 +88,7 @@ template <typename T> class matrix{
         inline friend matrix<T> operator +(matrix<T> a, matrix<T> b){
             matrix<T> temp(a.rows, b.cols);
             if((a.cols!=b.cols)||(a.rows!=b.rows)){
-                cerr << "dim mis match" << endl;
+                std::cerr << "dim mis match" << '\n';
                 return temp;
             }
             for(int i= 0; i < a.rows; i++){
@@ -90,24 +100,36 @@ template <typename T> class matrix{
         };
         inline T& operator()(int a, int b) {
             if(a > rows-1 || b > cols-1){
-                cerr << "dim do not match" << endl;
+                std::cerr << "dim do not match" << '\n';
+                std::cout << "a\n";
                 return data[0];
             }
             return data[(a*cols)+b];
         };
         inline const T&operator()(int a, int b) const {
             if(a > rows-1 || b > cols-1){
-                cerr << "dim do not match" << endl;
+                std::cerr << "dim do not match" << '\n';
+                std::cout << "b\n";
                 return data[0];
             }
             return data[(a*cols)+b];
         };
+        ~matrix(){delete[] data;rows =0; cols =0;}
         int rows;
         int cols;
     private:
         T *data;
 
 };
+template <typename T>
+inline matrix<T>::matrix(_init_list_with_square_brackets<T> l, int r, int c){
+    data = new T[r*c];
+    rows = r;
+    cols = c;
+    for(int i =0; i < r*c; i++){
+        data[i] = l[i];
+    }
+}
 template <typename T>
 inline matrix<T>::matrix(int n, int m)
 {
@@ -116,34 +138,32 @@ inline matrix<T>::matrix(int n, int m)
     rows = n;
     cols = m;
 };
-/*
 template <typename T>
 inline matrix<T>::matrix(matrix<T> &a){
+    data = new T[a.cols + a.rows];
     rows = a.rows;
     cols = a.cols;
-    //data = (T*)calloc(rows * cols, sizeof(T));
-    data = new T[rows*cols];
-    for(int i =0; i < a.rows*a.cols; i++){
+    for(int i =0; i < rows*cols; i++){
         data[i] = a.data[i];
+    }
+}
+
+template<class T> 
+inline void matrix<T>::printout(){
+    std::cout << '\n';
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+           std::cout << data[(cols*i)+j] << ' ';
+        }
+       std::cout << '\n';
     }
 
 };
-template<class T> 
-inline void matrix<T>::printout(){
-    cout << endl;
-    for(int i = 0; i < rows; i++){
-        for(int j = 0; j < cols; j++){
-            cout << data[(cols*i)+j] << ' ';
-        }
-        cout << endl;
-    }
-
-};*/
 template <typename T>
 inline void matrix<T>::row_swap(int row1, int row2)
 {
     if((row1>rows-1)||(row2>rows-1)){
-        cerr << "out of bounds row" << " row1: " << row1 << " row2: "<< row2 <<endl;
+        std::cerr << "out of bounds row" << " row1: " << row1 << " row2: "<< row2 << '\n';
         return;
     }else if(row1==row2){
         return;
@@ -158,7 +178,7 @@ template <typename T>
 inline void matrix<T>::row_add(int target, int op, T fac)
 {
     if((target>rows-1)||(op>rows-1)){
-        cerr << "out of bounds row" << " row1:" << target << " row2:"<<  op<<endl;
+        std::cerr << "out of bounds row" << " row1:" << target << " row2:"<<  op<<'\n';
         return;
     }else if((target==op)){
         return;
@@ -173,10 +193,9 @@ inline void matrix<T>::row_add(int target, int op, T fac)
 template <typename T> class vec{
     public:
         vec(int n);
-        //vec(vec<T> &a);
+        vec(vec<T> &a);
         vec(_init_list_with_square_brackets<T> l);
         inline void printout();
-        inline void entry(T *v, int size);
         inline void row_add(int target, int op, T fac){data[target] += (data[op]*fac);};
         inline void row_swap(int target, int op){T temp = data[target]; data[target]= data[op];data[op]=temp;};
         T* return_data(){return data;};
@@ -189,19 +208,17 @@ template <typename T> class vec{
             return *this;
         };
         inline vec<T> operator=(_init_list_with_square_brackets<T> l) noexcept{
-            if(l.size() != size){
-                cerr << "list wrong size" << endl;
-                return *this;
-            }
+            vec<T> temp(l.size());
             for(int i = 0; i < l.size(); i ++){
-                data[i] = l[i];
+                temp(i) = l[i];
             }
-            return *this;
+            return temp;
         };
         inline friend vec<T> operator+(vec<T> a, vec<T> b){
             vec<T> temp(a.size);
             if(a.size!=b.size){
-                cerr << "dim do not match" << endl;
+                std::cerr << "dim do not match" << '\n';
+                std::cout << "c\n";
                 return temp;
             }
             for(int i = 0; i < a.size;i++){
@@ -212,7 +229,8 @@ template <typename T> class vec{
         inline friend vec<T> operator-(vec<T> a, vec<T> b){
             vec<T> temp(a.size);
             if(a.size!=b.size){
-                cerr << "dim do not match" << endl;
+                std::cerr << "dim do not match" << '\n';
+                std::cout << "d\n";
                 return temp;
             }
             for(int i = 0; i < a.size;i++){
@@ -233,7 +251,7 @@ template <typename T> class vec{
         inline friend vec<T> operator*(matrix<T> a, vec<T> b){
             vec<T> temp(b.size);
             if(b.size != a.cols){
-                cerr << "Dim do not match" << endl;
+                std::cerr << "Dim do not match" << '\n';
                 return temp;
             }
             T sum  = 0;
@@ -241,10 +259,8 @@ template <typename T> class vec{
                 sum = 0;
                 for(int j = 0; j < a.cols; j++){
                     sum += a(i,j) * b(j);
-                    cout << "a("<< i << ',' << j << "):" << a(i,j) << " * b(" << j << "):" << b(j) << " = " <<(a(i,j)*b(j)) <<endl;
                 }
                 temp(i) = sum;
-                cout << "sum:" <<sum << endl;
             }
             return temp;
         };
@@ -257,7 +273,8 @@ template <typename T> class vec{
         // x = A/b; system's solver;
         inline T& operator()(int a) {
             if(a > size-1){
-                cerr << "dim do not match" << endl;
+                std::cerr << "Tried to access elm " << a << ", But size is " << size-1 << '\n';
+                exit(0);
                 return data[0];
             }else{
                 return data[a];    
@@ -266,13 +283,18 @@ template <typename T> class vec{
         };
         inline const T&operator()(int a) const {
             if(a > size-1){
-                cerr << "dim do not match" << endl;
+                std::cerr << "Tried to access elm " << a << ", But size is " << size-1 << '\n';
+                exit(0);
                 return data[0];
             }else{
                 return data[a];
             }
         };
-        int size;   
+        inline const T back(){
+            return data[size-1];
+        }
+        int size;
+        ~vec(){delete[] data;size=0;}   
     private:
         T *data;
 };
@@ -283,16 +305,16 @@ inline vec<T>::vec(int n)
     data = new T[n];
     size = n;
 }
-/*
 template <typename T>
 inline vec<T>::vec(vec<T> &a){
+    data = new T[a.size];
+    //data = a.data;
     size = a.size;
-    data  = new T[size];
-    for(int i =0; i < size; i++){
+    for(int i =0; i < size;i++){
         data[i] = a.data[i];
     }
+    
 }
-*/
 template <typename T>
 inline vec<T>::vec(_init_list_with_square_brackets<T> l) {
     size = l.size();
@@ -304,14 +326,14 @@ inline vec<T>::vec(_init_list_with_square_brackets<T> l) {
 template <typename T>
 inline void vec<T>::printout(){
     for(int i=0; i < size; i++){
-        cout << data[i] << endl;
+       std::cout << data[i] << '\n';
     }
-    cout << endl;
+   std::cout << '\n';
 };
 
 
 template <typename T>
-inline T norm1(vec<T> a){
+constexpr T norm1(vec<T> a){
     T sum = 0;
     for(int i =0; i < a.size; i++){
         sum += a(i);
@@ -346,11 +368,11 @@ inline vec<T> lin_solver(matrix<T> a, vec<T> b){
     vec<T> tempb(b.size), x(b.size); 
     //Two if else statements for size matching
     if(a.rows!=a.cols){
-        cerr << "matrix not square" << endl;
+        std::cerr << "matrix not square" << '\n';
         return x;
     }
     if(a.rows!=b.size){
-        cerr << "dim of A and b do not match" << endl;
+        std::cerr << "dim of A and b do not match" << '\n';
         return x;
     }
     //partial pivoting
@@ -392,59 +414,14 @@ inline vec<T> lin_solver(matrix<T> a, vec<T> b){
     return x;
 };
 
-
-template <typename T>
-inline vec<T> lin_solver_np(matrix<T> a, vec<T> b){
-    matrix<T> tempa(a.rows, a.cols);
-    vec<T> tempb(b.size), x(b.size); 
-    //Two if else statements for size matching
-    if(a.rows!=a.cols){
-        cerr << "matrix not square" << endl;
-        return x;
-    }
-    if(a.rows!=b.size){
-        cerr << "dim of A and b do not match" << endl;
-        return x;
-    }
-    //partial pivoting
-    //iterate through each coloum
-    tempa = a;
-    tempb = b;
-    if(a(0,0)==0){
-        tempa.row_swap(0,1);
-        tempb.row_swap(0,1);
-    }
-    //gaussian elimination to ref
-    for(int i = 0; i < tempa.rows;i++ ){
-        for(int j = i+1; j <tempa.cols;j++){
-            T m = (tempa(j,i)/tempa(i,i))*(-1.f);
-            tempa.row_add(j,i,m);
-            tempb.row_add(j,i,m);
-        }
-    }
-    //back sub
-    T sum = 0;
-    for(int i = tempa.rows-1; i>-1; i--){
-        for(int j = tempa.rows-1; j>i-1; j--){
-            if(i == tempa.rows-1){
-                sum += 0;
-            }else{
-                sum += tempa(i,j)*x(j);
-            }
-        }
-        x(i) = (tempb(i)-sum)/(tempa(i,i));
-        sum = 0;
-    }
-    return x;
-};
-
+/*
 template <typename T>
 inline void lu_decomp(matrix<T> a, matrix<T> &l, matrix<T> &u, matrix<T> &p){
     //assumptions about inputs l u and p are zeros
     p.set_diag(1);
     u = a;
     if(a.rows!=a.cols){
-        cerr << "matrix not square" << endl;
+        std::cerr << "matrix not square" << '\n';
         return;
     }
     //partial pivoting for numerical stability
@@ -467,13 +444,13 @@ inline void lu_decomp(matrix<T> a, matrix<T> &l, matrix<T> &u, matrix<T> &p){
             l(j,i) = m*(-1);
         }
     }
-}
+}*/
 
 template <typename T>
 inline T determinant(matrix<T> a){
     T det = 1;
     if(a.rows!=a.cols){
-        cerr << "matrix not square" << endl;
+        std::cerr << "matrix not square" << '\n';
         return det;
     }
     matrix<T> u(a.rows,a.cols);
@@ -511,14 +488,14 @@ inline T determinant(matrix<T> a){
 };
 
 template<typename T >
-inline T norm2(vec<T> a){
+constexpr T norm2(vec<T> a){
     return sqrt(dot(a,a));
 }
 template<typename T>
 inline T dot(vec<T>a, vec<T>b){
     T sum = 0;
     if(a.size != b.size){
-        cerr << "dim do not match, dotProduct" << endl;
+        std::cerr << "dim do not match, dotProduct" << '\n';
         return sum;
     }
     for(int i = 0; i < a.size; i ++){
@@ -527,18 +504,7 @@ inline T dot(vec<T>a, vec<T>b){
     return sum;
 }
 
-template <typename T>
-inline matrix<T> house_holder(vec<T> a){
-    int n = a.size;
-    matrix<T> temp(n,n);
-    for (int i = 0; i < n; i++){
-        for (int j = 0; j < n; j++){
-            temp(i,j) = -2 *  a(i) * a(j);
-        }
-    }
-    
-    return temp;
-}
+
 template <typename T>
 inline matrix<T> alt_house_holder(vec<T> a, int c){
     matrix<T> A(a.size, a.size);
@@ -592,6 +558,7 @@ inline vec<T> get_col(matrix<T> a, int c){
     }
     return temp;
 };
+
 template <typename T>
 inline void qr(matrix<T> a, matrix<T> &q, matrix<T> &r){
     matrix<T> h(a.rows,a.rows);
@@ -643,73 +610,233 @@ inline vec<T> interpolate(vec<T> x, vec<T> fx)
         }
     }
     return poly;
-}
-
-/*
-template <typename T>
-inline T nInt(vec<T> (*f)(vec<T>), T a, T b){
-    if(typeid(T) == int){
-
-    }else if (typeid(T) == float){
-
-    }else if(typeif(T) == double)
-}
-*/
+};
 
 // store each iteration in a vector; and then display the vector 
 template <typename T>
-inline vec<T> euler(T (*f)(T, T), T h, T a, T b, T inital){
+inline T euler(T (*f)(T, T), T h, T a, T b, T inital){
     int its = int((b-a)/h);
-    vec<T> val(its+1);
-    val(0) = inital;
-    for(int i =1; i < val.size; i++){
-        val(i) = val(i-1) + h*f(h*i, val(i-1));
+    //vec<T> val(its+1);
+    T val;
+    val = inital;
+    T t = a;
+    for(int i =1; i < its; i++){
+        val = (val + h*f(t, val));
+        t+=h;
     }
     return val;
-}
+};
 
 template <typename T>
-inline vec<T> rk4(T (*f)(T,T), T h, T a, T b, T inital){
-    int its = int((b-a)/h);
-    vec<T> val(its+1);
-    vec<T> k(4);
-    vec<T> cons(4);
+inline T change_h(T diff, T h, T tol){
+    T temp1 = 0.9*h*std::pow(tol/diff, 1./6.0);
+    T temp2 = 10*h;
+    return temp1<temp2 ? temp1 : temp2;
+};
+
+//i will want to do the h calc In this function
+template <typename T>
+inline T rkdps(T (*f)(T,T), T &h, T y, T t ,matrix<T> &a, vec<T> &b, vec<T> &b2 ,vec<T> &c, T &diff,T tol){
+    vec<T> temp(2);
+    vec<T> k(7);
+    k(0) = h * f(t,y);
+    k(1) = h * f(t + c(1)*h, y + h*a(1,0)*k(0));
+    k(2) = h * f(t + c(2)*h, y + h*a(2,0)*k(0) + h*a(2,1)*k(1));
+    k(3) = h * f(t + c(3)*h, y + h*a(3,0)*k(0) + h*a(3,1)*k(1) + h*a(3,2)*k(2));
+    k(4) = h * f(t + c(4)*h, y + h*a(4,0)*k(0) + h*a(4,1)*k(1) + h*a(4,2)*k(2) + h*a(4,3)*k(3));
+    k(5) = h * f(t + c(5)*h, y + h*a(5,0)*k(0) + h*a(5,1)*k(1) + h*a(5,2)*k(2) + h*a(5,3)*k(3) + h*a(5,4)*k(4));
+    k(6) = h * f(t + c(6)*h, y + h*a(6,0)*k(0) + h*a(6,1)*k(1) + h*a(6,2)*k(2) + h*a(6,3)*k(3) + h*a(6,4)*k(4) + a(6,5)*k(5));
+    temp(0) = y +  b(0)*k(0) + b(1)*k(1) + b(2)*k(2) + b(3)*k(3) + b(4)*k(4) + b(5)*k(5);
+    temp(1) = y +  b2(0)*k(0) + b2(1)*k(1) + b2(2)*k(2) + b2(3)*k(3) + b2(4)*k(4) + b2(5)*k(5) + b2(6)*k(6);
+    diff = norm2(temp);
+    //diff = abs(temp(1)-temp(0));
+    if(diff > h*tol){
+        h=change_h(diff, h, tol);
+        std::cout << "hit\n"; 
+    }
+    return temp(0);
+};
+
+
+
+//One of the matrices or vectors is either not doing a proper deep copy, or 
+template <typename T>
+inline T rkdp(T (*f)(T,T), T h, T a, T b, T inital, T tol){
+    matrix<T>aii(7,7);
+    vec<T>bi(7),bi2(7),ci(7);
+    aii(1,0) = 1./5.;
+    aii(2,0) = 3./40.;         aii(2,1) = 9./40.;
+    aii(3,0) = 44./45.;        aii(3,1) = -56./15.;        aii(3,2) = 32./9.;
+    aii(4,0) = 19372.0/6561.0; aii(4,1) = -25360./2187.;   aii(4,2) = 64448.0/6561.0; aii(4,3) = -212./729.;
+    aii(5,0) = 9017./3168.;    aii(5,1) = -355./33.;       aii(5,2) = 46732./5247.;   aii(5,3) = 49./176.;    aii(5,4) = -5103./18656.;
+    aii(6,0) = 35./384.;       aii(6,1) = 0.;              aii(6,2) = 500./1113.;     aii(6,3) = 125.0/192.;  aii(6,4) = -2187.0/6784.0;  aii(6,5) = 11./84.;
+    bi(0) = 35./384.;          bi(1)=0.;                   bi(2)=500./1113.;          bi(3) = 125./192.;      bi(4)=-2187.0/6784.0;       bi(5)=11./84.;       bi(6)=0.;
+    bi2(0) = 5179.0/57600.0;   bi2(1)=0.0;                 bi2(2)=7571.0/16695.0;     bi2(3) = 393.0/640.0;   bi2(4)=-92097.0/339200.0;   bi2(5)=187./2100.;   bi2(6)=1./40.;
+    ci(0) = 0.0;               ci(1)=0.2;                  ci(2)=0.3;                 ci(3) = 0.8;            ci(4)=8.0/9.0;              ci(5)=1.0;           ci(6)=1.0;
+    T y = inital; 
     T t = a;
-    T h2 = h*0.5f;
-    val(0) = inital;
-    for(int i =1; i < val.size; i){
-        k(0) =  f(t, val);
-        k(1) = f(t+h2, val(i-1)+h2*k(0));
-        k(2) = f(t+h2, val(i-1)+h2*k(1));
-        k(3) = f(t+h2, val(i-1)+h*k(2));
-        val(i) = val(i-1) + h*(k(0)*cons(0) + k(1)*cons(1) + k(2)*cons(3) + k(3)*cons(3));
+    T diff;
+    while(t < b){
+        //std::cout << h << '\n';
+        y = rkdps(f, h, y, t, aii,bi,bi2,ci,diff, tol);
+        t+=h;
+    }
+    return y;
+};
+
+
+
+template <typename T>
+inline T rk4(T (*f)(T,T), T h, T a, T b, T inital){
+    int its = int((b-a)/h);
+    T k0,k1,k2,k3,val;
+    T t = a;
+    T h2 = h*0.5;
+    val = inital;
+    for(int i =0; i < its; i++){
+        k0 =  f(t, val);
+        k1 = f(t+h2, val+h2*k0);
+        k2 = f(t+h2, val+h2*k1);
+        k3 = f(t+h, val+h*k2);
+        val = val + h*(1.0/6.0)*(k0 + k1*2.f + k2*2.f + k3);
         t += h;
     }
     return val;
-}
+};
+template <typename T>
+inline void rk4(T (*f)(T,T), T h, T a, T b, T inital, vec<T> &val){
+    int its = int((b-a)/h);
+    //vec<T> vals(its);
+    T k0,k1,k2,k3;
+    T t = a;
+    T h2 = h*0.5;
+    val(0) = inital;
+    for(int i =0; i < its; i++){
+        k0 =  f(t, val(i));
+        k1 = f(t+h2, val(i)+h2*k0);
+        k2 = f(t+h2, val(i)+h2*k1);
+        k3 = f(t+h, val(i)+h*k2);
+        val(i+1) = val(i) + h*(1.0/6.0)*(k0 + k1*2.f + k2*2.f + k3);
+        t += h;
+    }
+};
+
+template <typename T>
+inline T rk4(T (*f)(T,T), T h, T a, T val){
+    T k0,k1,k2,k3;
+    T h2 = h*0.5f;
+    k1 = f(a+h2, val+(h2*k0));
+    k2 = f(a+h2, val+(h2*k1));
+    k3 = f(a+h, val+(h*k2));
+    return val + h*(1.0/6.0)*(k0 + k2*2.f + k3*2.f + k3);
+};
+
+template <typename T>
+inline vec<T> rk4(vec<T> (*f)(vec<T>,vec<T>), T h, vec<T> a, vec<T> val){
+    vec<T> k0(a.size),k1(a.size),k2(a.size),k3(a.size);
+    T h2 = h*0.5;
+    k0 = f(a, val);
+    k1 = f(a+h2, val+(h2*k0));
+    k2 = f(a+h2, val+(h2*k1));
+    k3 = f(a+h, val+(h*k2));
+    return val + h*(1.0/6.0)*(k0 + k2*2.f + k3*2.f + k3);
+};
 
 
-
-template <typename T>//this one needs an rk function call
-inline T AB4(T (*f)(T,T), T h, T a, T b, T inital){
+template <typename T>
+inline vec<T> AB4(T (*f)(T,T), T h, T a, T b, T inital){
     int its = int((b-a)/h);
     vec<T> val(its+1);
     vec<T> func_vals(4);
     val(0) = inital;
-    func_vals = rk4(f, h, a, a+3*h, inital);
-    for(int i = 0; i < its; i++){
-        
+    rk4(f, h, a, a+3*h, inital,val);
+    T t=a;
+    func_vals(0) = f(t,val(0));t+=h;
+    func_vals(1) = f(t,val(1));t+=h;
+    func_vals(2) = f(t,val(2));t+=h;
+    func_vals(3) = f(t,val(3));
+    int i = 4;
+    while(t<b){
+        val(i) = val(i-1) + (h)*(55.*func_vals(3) - 59.*func_vals(2) + 37.*func_vals(1) -9.*func_vals(0))/(24.);
+        t+=h;
+        func_vals(0) = func_vals(1);func_vals(1) = func_vals(2);func_vals(2) = func_vals(3);
+        func_vals(3) = f(t,val(i));
+        i++;
     }
-    //loop time
-    for(int a =0; a < 10; a++){
-
-    }
-}
+    return val;
+};
 
 template <typename T>
-inline T AB4(vec<T> (*f)(T,T), T h, T a, T b, vec<T> inital){
+inline vec<T> pece(T (*f)(T,T), T h, T a, T b, T inital){
+    int its = int((b-a)/h);
+    vec<T> val(its+1);
+    vec<T> func_vals(4);
+    val(0) = inital;
+    rk4(f, h, a, a+3*h, inital,val);
+    T t=a;
+    func_vals(0) = f(t,val(0));t+=h;
+    func_vals(1) = f(t,val(1));t+=h;
+    func_vals(2) = f(t,val(2));t+=h;
+    func_vals(3) = f(t,val(3));
+    int i = 4;
+    T temp;
+    while(t<b){
+        val(i) = val(i-1) + (h)*(55.*func_vals(3) - 59.*func_vals(2) + 37.*func_vals(1) -9.*func_vals(0))/(24.);
+        t+=h;
+        temp = f(t,val(i));
+        val(i) = val(i-1) + (h)*(251.0*temp + 646.0*func_vals(3) -264.0*func_vals(2)+106.0*func_vals(1)-19.0*func_vals(0))/(720.0);
+        func_vals(0) = func_vals(1);func_vals(1) = func_vals(2);func_vals(2) = func_vals(3);
+        func_vals(3) = f(t,val(i));
+        i++;
+    }
+    return val;
+};
 
-}
+template <typename T>
+inline vec<T> AB4(T (*f)(T,T), T h, T a, T b, vec<T> inital){
+    int its = int((b-a)/h);
+    vec<T> val(its+1);
+    vec<T> func_vals(4);
+    val(0)= inital(0);
+    T t=a;
+    func_vals(0) = f(t,inital(0));t+=h;
+    func_vals(1) = f(t,inital(1));t+=h;
+    func_vals(2) = f(t,inital(2));t+=h;
+    func_vals(3) = f(t,inital(3));
+    int i = 4;
+    while(t<b){
+        val(i) = val(i-1) + (h)*(55.*func_vals(3) - 59.*func_vals(2) + 37.*func_vals(1) -9.*func_vals(0))/(24.);
+        t+=h;
+        func_vals(0) = func_vals(1);func_vals(1) = func_vals(2);func_vals(2) = func_vals(3);
+        func_vals(3) = f(t,val(i));
+        i++;
+    }
+    return val;
+};
+template <typename T>
+inline vec<T> pece(T (*f)(T,T), T h, T a, T b, vec<T> inital){
+    int its = int((b-a)/h);
+    vec<T> val(its+1);
+    vec<T> func_vals(4);
+    val(0)= inital(0);
+    T t=a;
+    func_vals(0) = f(t,inital(0));t+=h;
+    func_vals(1) = f(t,inital(1));t+=h;
+    func_vals(2) = f(t,inital(2));t+=h;
+    func_vals(3) = f(t,inital(3));
+    int i = 4;
+    T temp;
+    while(t<b){
+        val(i) = val(i-1) + (h)*(55.*func_vals(3) - 59.*func_vals(2) + 37.*func_vals(1) -9.*func_vals(0))/(24.);
+        t+=h;
+        temp = f(t,val(i));
+        val(i) = val(i-1) + (h)*(251.0*temp + 646.0*func_vals(3) -264.0*func_vals(2)+106.0*func_vals(1)-19.0*func_vals(0))/(720.0);
+        func_vals(0) = func_vals(1);func_vals(1) = func_vals(2);func_vals(2) = func_vals(3);
+        func_vals(3) = f(t,val(i));
+        i++;
+    }
+    return val;
+};
 
 
 
