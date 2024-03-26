@@ -123,7 +123,7 @@ template <typename T> class matrix{
 };
 template <typename T>
 inline matrix<T>::matrix(_init_list_with_square_brackets<T> l, int r, int c){
-    data = new T[r*c];
+    data = new T[r*c]();
     rows = r;
     cols = c;
     for(int i =0; i < r*c; i++){
@@ -134,13 +134,13 @@ template <typename T>
 inline matrix<T>::matrix(int n, int m)
 {
     //data = (T*)calloc(n*m,sizeof(T));
-    data = new T[n*m];
+    data = new T[n*m]();
     rows = n;
     cols = m;
 };
 template <typename T>
 inline matrix<T>::matrix(matrix<T> &a){
-    data = new T[a.cols + a.rows];
+    data = new T[a.cols + a.rows]();
     rows = a.rows;
     cols = a.cols;
     for(int i =0; i < rows*cols; i++){
@@ -302,12 +302,12 @@ template <typename T> class vec{
 template <typename T>
 inline vec<T>::vec(int n)
 {
-    data = new T[n];
+    data = new T[n]();
     size = n;
 }
 template <typename T>
 inline vec<T>::vec(vec<T> &a){
-    data = new T[a.size];
+    data = new T[a.size]();
     //data = a.data;
     size = a.size;
     for(int i =0; i < size;i++){
@@ -318,7 +318,7 @@ inline vec<T>::vec(vec<T> &a){
 template <typename T>
 inline vec<T>::vec(_init_list_with_square_brackets<T> l) {
     size = l.size();
-    data = new T[size];
+    data = new T[size]();
     for(int i =0; i < size; i++){
         data[i] = l[i];
     }
@@ -836,6 +836,33 @@ inline vec<T> pece(T (*f)(T,T), T h, T a, T b, vec<T> inital){
         i++;
     }
     return val;
+};
+
+// for the finite difference code, i will basically need to generate a matrix and then use my linear solver to get the results
+//to generate this matrix, the function that is being used as an input must return a vector of size 3, that corresponds:
+//p(xi), q(xi), r(xi)
+template <typename T>
+inline vec<T> finite_differences(vec<T> (*f)(T), T h, T a, T b, T y0, T yn){
+    int its = (int)(((b-a)/h)+0.5f);//0.5f for rounding this caused an issue with the code from last week
+    T x = a+h;
+    T h2 = h*0.5;
+    vec<T> b_vec(its);
+    b_vec(its-1) = yn;
+    b_vec(0) = y0;
+    matrix<T>  A_mat(its,its);//default constructor allocates all the elements to be 0
+    A_mat(0,0) = 1;A_mat(its-1,its-1) = 1;//setting the corners to 1;
+    vec<T> temp(3);//this is a place holder so I don't allocate memory every iteration of the loop, and only need to do one function call;
+    for(int i =1; i < its-2; i++){//bounded so it doesn't disturb the preset elements
+        temp = f(x);
+        b_vec(i) = h*h*temp(2);
+        A_mat(i,i) = 1;
+        A_mat(i,i-1) = h2*(temp(0)+1)/(-2.-temp(1));
+        A_mat(i,i+1) = h2*(temp(0)-1)/(2.+temp(1)); 
+        x+=h;
+    }
+
+    return lin_solver(A_mat,b_vec);
+
 };
 
 
