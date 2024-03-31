@@ -7,339 +7,10 @@
 #include<cstdlib>
 #include <chrono>
 
+#include "vec.hpp"
+#include "matrix.hpp"
 //next step is to add a second optional arg to the template, which i will expand on in a different file for 2by2 3by3 4by4 matricies, I won't add the implimentation just yet, however 
 
-template<class T>
-struct _init_list_with_square_brackets {
-    const std::initializer_list<T>& list;
-    _init_list_with_square_brackets(const std::initializer_list<T>& _list): list(_list) {}
-    T operator[](unsigned int index) {
-        return *(list.begin() + index);
-    }
-    int size(){
-        return list.size();
-    }
-
-};
-
-
-template <typename T> class matrix{
-    public:
-        matrix(int n, int m);
-        matrix(matrix<T> &a);
-        matrix(_init_list_with_square_brackets<T> l, int rows, int col);
-        inline void printout();
-        inline void set_diag(T c){for(int i = 0; i < rows; i++){data[(i*cols)+i]=c;}};
-        inline void row_swap(int row1, int row2);
-        inline void row_add(int target, int op, T fac);
-        inline matrix<T> operator=(matrix<T> a) noexcept
-        {
-            matrix<T> temp(a.cols,a.rows);
-            for(int i = 0; i < a.rows*a.cols; i ++){
-                temp.data[i] = a.data[i];
-            }
-            return temp;
-        };
-        
-        /*inline matrix<T> operator=(_init_list_with_square_brackets<T> l) noexcept{
-            if(l.size() != rows*cols){
-                std::cerr << "list wrong size" << '\n';
-                std::abort;
-            }
-            matrix<T> temp;
-            temp.data = new T[l.size()];
-            for(int i = 0; i < l.size(); i ++){
-                temp.data[i] = l[i];
-            }
-            return temp;
-        }
-        */
-        inline friend matrix<T> operator*(matrix<T> a, matrix<T> b){
-            matrix<T> temp(a.rows, b.cols);
-            if((a.cols!=b.rows)){
-                std::cerr << "dim mis match" << '\n';
-                return temp;
-            }
-            for(int i = 0; i < a.rows; i++){
-                for(int j = 0; j < b.cols; j++){
-                    for(int k=0; k < b.rows; k++ ){
-                        temp(i,j) += a(i,k)*b(k,j);
-                    }
-                }
-            }
-            return temp;
-        };
-        inline matrix operator *=(T c){
-            for(int i = 0; i < this->rows;i++){
-                for(int j = 0; j < this->cols;j++){
-                    data[(i*cols)+j] *= c;
-                }
-            }
-            return *this;
-        };
-        inline matrix operator/=(T c){
-            for(int i = 0; i < this->rows;i++){
-                for(int j = 0; j < this->cols;j++){
-                    data[(i*cols)+j] /= c;
-                }
-            }
-            return *this;
-        }
-        inline friend matrix<T> operator +(matrix<T> a, matrix<T> b){
-            matrix<T> temp(a.rows, b.cols);
-            if((a.cols!=b.cols)||(a.rows!=b.rows)){
-                std::cerr << "dim mis match" << '\n';
-                return temp;
-            }
-            for(int i= 0; i < a.rows; i++){
-                for(int j=0; j < a.cols; j++){
-                    temp(i,j) += a(i,j) + b(i,j);
-                }
-            }
-            return temp;
-        };
-        inline T& operator()(int a, int b) {
-            if(a > rows-1 || b > cols-1){
-                std::cerr << "dim do not match" << '\n';
-                std::cout << "a\n";
-                return data[0];
-            }
-            return data[(a*cols)+b];
-        };
-        inline const T&operator()(int a, int b) const {
-            if(a > rows-1 || b > cols-1){
-                std::cerr << "dim do not match" << '\n';
-                std::cout << "b\n";
-                return data[0];
-            }
-            return data[(a*cols)+b];
-        };
-        ~matrix(){delete[] data;rows =0; cols =0;}
-        int rows;
-        int cols;
-    private:
-        T *data;
-
-};
-template <typename T>
-inline matrix<T>::matrix(_init_list_with_square_brackets<T> l, int r, int c){
-    data = new T[r*c]();
-    rows = r;
-    cols = c;
-    for(int i =0; i < r*c; i++){
-        data[i] = l[i];
-    }
-}
-template <typename T>
-inline matrix<T>::matrix(int n, int m)
-{
-    //data = (T*)calloc(n*m,sizeof(T));
-    data = new T[n*m]();
-    rows = n;
-    cols = m;
-};
-template <typename T>
-inline matrix<T>::matrix(matrix<T> &a){
-    data = new T[a.cols + a.rows]();
-    rows = a.rows;
-    cols = a.cols;
-    for(int i =0; i < rows*cols; i++){
-        data[i] = a.data[i];
-    }
-}
-
-template<class T> 
-inline void matrix<T>::printout(){
-    std::cout << '\n';
-    for(int i = 0; i < rows; i++){
-        for(int j = 0; j < cols; j++){
-           std::cout << data[(cols*i)+j] << ' ';
-        }
-       std::cout << '\n';
-    }
-
-};
-template <typename T>
-inline void matrix<T>::row_swap(int row1, int row2)
-{
-    if((row1>rows-1)||(row2>rows-1)){
-        std::cerr << "out of bounds row" << " row1: " << row1 << " row2: "<< row2 << '\n';
-        return;
-    }else if(row1==row2){
-        return;
-    }
-    for(int i =0; i < cols; i++){
-        T temp = data[(row1*cols)+i];
-        data[(row1*cols)+i] = data [(row2*cols)+i];
-        data[(row2*cols)+i] = temp;
-    } 
-};
-template <typename T>
-inline void matrix<T>::row_add(int target, int op, T fac)
-{
-    if((target>rows-1)||(op>rows-1)){
-        std::cerr << "out of bounds row" << " row1:" << target << " row2:"<<  op<<'\n';
-        return;
-    }else if((target==op)){
-        return;
-    }
-    for(int i =0; i < cols; i++){
-        data[(target*cols)+i] += (fac)*data[(op*cols)+i];
-    } 
-
-};
-
-
-template <typename T> class vec{
-    public:
-        vec(int n);
-        vec(vec<T> &a);
-        vec(_init_list_with_square_brackets<T> l);
-        inline void printout();
-        inline void row_add(int target, int op, T fac){data[target] += (data[op]*fac);};
-        inline void row_swap(int target, int op){T temp = data[target]; data[target]= data[op];data[op]=temp;};
-        T* return_data(){return data;};
-        void set(int a, T d){data[a]=d;};
-        inline vec<T> operator=(vec<T> a) noexcept
-        {
-            for(int i = 0; i < a.size; i ++){
-                this->data[i] = a.data[i];
-            }
-            return *this;
-        };
-        inline vec<T> operator=(_init_list_with_square_brackets<T> l) noexcept{
-            vec<T> temp(l.size());
-            for(int i = 0; i < l.size(); i ++){
-                temp(i) = l[i];
-            }
-            return temp;
-        };
-        inline friend vec<T> operator+(vec<T> a, vec<T> b){
-            vec<T> temp(a.size);
-            if(a.size!=b.size){
-                std::cerr << "dim do not match" << '\n';
-                std::cout << "c\n";
-                return temp;
-            }
-            for(int i = 0; i < a.size;i++){
-                temp(i) = (a(i)+b(i));
-            }
-            return temp;
-        };
-        inline friend vec<T> operator-(vec<T> a, vec<T> b){
-            vec<T> temp(a.size);
-            if(a.size!=b.size){
-                std::cerr << "dim do not match" << '\n';
-                std::cout << "d\n";
-                return temp;
-            }
-            for(int i = 0; i < a.size;i++){
-                temp(i) = (a(i)-b(i));
-            }
-            return temp;
-        };
-        inline vec<T> operator+=(T c){for(int i = 0; i < this->size;i++){data[i]+=c;}return *this;};
-        inline vec<T> operator+=(vec<T> a){for(int i =0; i < this->size;i++){this->data[i] += a(i);}return *this;};
-        inline vec<T> operator-=(T c){for(int i = 0; i < this->size;i++){data[i]-=c;}return *this;};
-        inline vec<T> operator-=(vec<T> a){for(int i =0; i < this->size;i++){this->data[i] -= a(i);}return *this;};
-        inline friend vec<T> operator*(vec<T> a,T c){
-            vec<T> temp(a.size);
-            for(int i =0; i < a.size; i++)
-                temp(i) = (a(i) * c);
-            return temp;
-        };
-        inline friend vec<T> operator*(matrix<T> a, vec<T> b){
-            vec<T> temp(b.size);
-            if(b.size != a.cols){
-                std::cerr << "Dim do not match" << '\n';
-                return temp;
-            }
-            T sum  = 0;
-            for(int i = 0; i<a.rows; i++){
-                sum = 0;
-                for(int j = 0; j < a.cols; j++){
-                    sum += a(i,j) * b(j);
-                }
-                temp(i) = sum;
-            }
-            return temp;
-        };
-        inline vec<T> operator*=(T scalar){
-            for(int i =0; i < this->size; i++){
-                this->data[i] *= scalar;
-            }
-            return *this;
-        };
-        // x = A/b; system's solver;
-        inline T& operator()(int a) {
-            if(a > size-1){
-                std::cerr << "Tried to access elm " << a << ", But size is " << size-1 << '\n';
-                exit(0);
-                return data[0];
-            }else{
-                return data[a];    
-            }
-            
-        };
-        inline const T&operator()(int a) const {
-            if(a > size-1){
-                std::cerr << "Tried to access elm " << a << ", But size is " << size-1 << '\n';
-                exit(0);
-                return data[0];
-            }else{
-                return data[a];
-            }
-        };
-        inline const T back(){
-            return data[size-1];
-        }
-        int size;
-        ~vec(){delete[] data;size=0;}   
-    private:
-        T *data;
-};
-
-template <typename T>
-inline vec<T>::vec(int n)
-{
-    data = new T[n]();
-    size = n;
-}
-template <typename T>
-inline vec<T>::vec(vec<T> &a){
-    data = new T[a.size]();
-    //data = a.data;
-    size = a.size;
-    for(int i =0; i < size;i++){
-        data[i] = a.data[i];
-    }
-    
-}
-template <typename T>
-inline vec<T>::vec(_init_list_with_square_brackets<T> l) {
-    size = l.size();
-    data = new T[size]();
-    for(int i =0; i < size; i++){
-        data[i] = l[i];
-    }
-};
-template <typename T>
-inline void vec<T>::printout(){
-    for(int i=0; i < size; i++){
-       std::cout << data[i] << '\n';
-    }
-   std::cout << '\n';
-};
-
-
-template <typename T>
-constexpr T norm1(vec<T> a){
-    T sum = 0;
-    for(int i =0; i < a.size; i++){
-        sum += a(i);
-    }
-    return sum;
-};
 
 template <typename T> 
 inline void gausian_reduction(matrix<T> &a){
@@ -362,27 +33,20 @@ inline void gausian_reduction(matrix<T> &a){
     }
 }
 
+
 template <typename T> 
-inline vec<T> lin_solver(matrix<T> a, vec<T> b){
-    matrix<T> tempa(a.rows, a.cols);
-    vec<T> tempb(b.size), x(b.size); 
+inline vec<T> lin_solver(matrix<T> a,vec<T> b){
+    matrix<T> tempa(a.row,a.col);
+    vec<T> tempb(b.size),x(b.size);
     //Two if else statements for size matching
-    if(a.rows!=a.cols){
-        std::cerr << "matrix not square" << '\n';
-        return x;
-    }
-    if(a.rows!=b.size){
-        std::cerr << "dim of A and b do not match" << '\n';
-        return x;
-    }
     //partial pivoting
     //iterate through each coloum
     tempa = a;
     tempb = b;
     int biggest_row;
-    for(int i =0; i < tempa.cols;i++){
+    for(int i =0; i < tempa.col;i++){
         biggest_row = i;
-        for(int j = i+1; j < tempa.rows;j++){
+        for(int j = i+1; j < tempa.row;j++){
             if(tempa(j,i) > tempa(biggest_row,i)){
                 biggest_row = j;
             }
@@ -391,8 +55,8 @@ inline vec<T> lin_solver(matrix<T> a, vec<T> b){
         tempb.row_swap(biggest_row, i);
     }
     //gaussian elimination to ref
-    for(int i = 0; i < tempa.rows;i++ ){
-        for(int j = i+1; j <tempa.cols;j++){
+    for(int i = 0; i < tempa.row;i++ ){
+        for(int j = i+1; j <tempa.col;j++){
             T m = (tempa(j,i)/tempa(i,i))*(-1.f);
             tempa.row_add(j,i,m);
             tempb.row_add(j,i,m);
@@ -400,9 +64,9 @@ inline vec<T> lin_solver(matrix<T> a, vec<T> b){
     }
     //back sub
     T sum = 0;
-    for(int i = tempa.rows-1; i>-1; i--){
-        for(int j = tempa.rows-1; j>i-1; j--){
-            if(i == tempa.rows-1){
+    for(int i = tempa.row-1; i>-1; i--){
+        for(int j = tempa.row-1; j>i-1; j--){
+            if(i == tempa.row-1){
                 sum += 0;
             }else{
                 sum += tempa(i,j)*x(j);
@@ -414,7 +78,47 @@ inline vec<T> lin_solver(matrix<T> a, vec<T> b){
     return x;
 };
 
-/*
+template <typename T> 
+inline vec<T> lin_solver_np(matrix<T> a,vec<T> b){
+    matrix<T> tempa(a);
+    vec<T> tempb(b),x(b.size);
+    //gaussian elimination to ref
+    for(int i = 0; i < tempa.row;i++ ){
+        for(int j = i+1; j <tempa.col;j++){
+            T m = (tempa(j,i)/tempa(i,i))*(-1.f);
+            tempa.row_add(j,i,m);
+            tempb.row_add(j,i,m);
+        }
+    }
+    //back sub
+    T sum = 0;
+    for(int i = tempa.row-1; i>-1; i--){
+        for(int j = tempa.row-1; j>i-1; j--){
+            if(i == tempa.row-1){
+                sum += 0;
+            }else{
+                sum += tempa(i,j)*x(j);
+            }
+        }
+        x(i) = (tempb(i)-sum)/(tempa(i,i));
+        sum = 0;
+    }
+    return x;
+};
+
+template <typename T>
+inline void lu_decomp_np(matrix<T> a, matrix<T> &l, matrix<T> &u){
+    u = a;
+    l.set_diag(1.0);
+    for(int i = 0; i < u.row;i++ ){
+        for(int j = i+1; j <u.col;j++){
+            T m = (u(j,i)/u(i,i))*(-1);
+            u.row_add(j,i,m);
+            l(j,i) = m*(-1);
+        }
+    }
+}
+
 template <typename T>
 inline void lu_decomp(matrix<T> a, matrix<T> &l, matrix<T> &u, matrix<T> &p){
     //assumptions about inputs l u and p are zeros
@@ -437,14 +141,13 @@ inline void lu_decomp(matrix<T> a, matrix<T> &l, matrix<T> &u, matrix<T> &p){
         p.row_swap(biggest_row, i);
     }
     for(int i = 0; i < u.rows;i++ ){
-        
         for(int j = i+1; j <u.cols;j++){
             T m = (u(j,i)/u(i,i))*(-1);
             u.row_add(j,i,m);
             l(j,i) = m*(-1);
         }
     }
-}*/
+}
 
 template <typename T>
 inline T determinant(matrix<T> a){
@@ -845,26 +548,65 @@ template <typename T>
 inline vec<T> finite_differences(vec<T> (*f)(T), T h, T a, T b, T y0, T yn){
     int its = (int)(((b-a)/h)+0.5f);//0.5f for rounding this caused an issue with the code from last week
     T x = a+h;
-    T h2 = h*0.5;
-    vec<T> b_vec(its);
-    b_vec(its-1) = yn;
+    vec<T> b_vec(its+1);
+    b_vec(its) = yn;
     b_vec(0) = y0;
-    matrix<T>  A_mat(its,its);//default constructor allocates all the elements to be 0
-    A_mat(0,0) = 1;A_mat(its-1,its-1) = 1;//setting the corners to 1;
+    matrix<T>  A_mat(its+1,its+1);//default constructor allocates all the elements to be 0
+    A_mat(0,0) = 1;A_mat(its,its) = 1;//setting the corners to 1;
     vec<T> temp(3);//this is a place holder so I don't allocate memory every iteration of the loop, and only need to do one function call;
-    for(int i =1; i < its-2; i++){//bounded so it doesn't disturb the preset elements
+    //T  l_elm, c, r_elm;
+    T c1 = 1 / (h*h);
+    T c2 = (1/h)*0.5;
+    for(int i =1; i < its; i++){//bounded so it doesn't disturb the preset elements
         temp = f(x);
-        b_vec(i) = h*h*temp(2);
-        A_mat(i,i) = 1;
-        A_mat(i,i-1) = h2*(temp(0)+1)/(-2.-temp(1));
-        A_mat(i,i+1) = h2*(temp(0)-1)/(2.+temp(1)); 
-        x+=h;
+        b_vec(i) = temp(2);
+        A_mat(i,i) = ((T)-1)*(temp(1)+ 2.0*c1);
+        A_mat(i,i-1) = c1 + c2*temp(0);
+        A_mat(i,i+1) = c1 - c2*temp(0);
+        x+=h; 
     }
-
-    return lin_solver(A_mat,b_vec);
-
+    vec<T> result(b_vec.size);
+    result = lin_solver_np(A_mat, b_vec);
+    return result;
 };
 
+template <typename T>
+inline vec<T> rk4(vec<T> (*f)(T,vec<T>), T h, T t, vec<T> val){//single iteration, mean to handle 2nd order eqs
+    vec<T> k0(val.size),k1(val.size),k2(val.size),k3(val.size);
+    T h2 = h*0.5;
+    k0 = f(t, val);
+    k1 = f(t+h2, val+(h2*k0));
+    k2 = f(t+h2, val+(h2*k1));
+    k3 = f(t+h, val+(h*k2));
+    return val + h*(1.0/6.0)*(k0 + k2*2.f + k3*2.f + k3);
+};
+template <typename T>
+inline vec<T> shot(vec<T> (*f)(T, vec<T>), T h, T a, T b, T y0, T yp){
+    int its = int(((b-a)/h)+0.5);
+    vec<T> results(its+1);results(0)= y0;
+    T t=a;
+    vec<T> val(2);
+    val = {y0, yp};
+    for(int i = 1; i< results.size; i++){
+        val = rk4(f, h, t, val);
+        results(i) = val(0);
+        t+=h;
+    }
+    return results;
+}
+
+//I have a vectorized form of rk which makes this so much easier
+template <typename T>
+inline vec<T> linear_shooting(vec<T> (*fg)(T, vec<T>),vec<T> (*fp)(T, vec<T>), T h, T a, T b, T y0, T y1){
+    int its = int(((b-a)/h)+0.5);
+    vec<T> low_vec(its+1), high_vec(its+1);
+    T c = (y1-y0)/(b-a);
+    low_vec = shot(fp, h, a, b, y0, (T)0);
+    high_vec = shot(fg, h, a, b, (T)0, c);
+    T scalar = (y1-low_vec.back())/high_vec.back();
+    low_vec = low_vec + scalar*high_vec;
+    return low_vec;
+}
 
 
 
