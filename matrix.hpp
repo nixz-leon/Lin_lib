@@ -69,7 +69,8 @@ matrix<T>::matrix(){
 }
 template <typename T>
 matrix<T>::matrix(int n, int m){
-    data = new T[n*m];
+    //data = new T[n*m];
+    data = (T*)std::calloc(n*m,sizeof(T));
     row = n;
     col = m;
 };

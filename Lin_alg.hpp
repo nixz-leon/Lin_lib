@@ -81,7 +81,8 @@ inline vec<T> lin_solver(matrix<T> a,vec<T> b){
 template <typename T> 
 inline vec<T> lin_solver_np(matrix<T> a,vec<T> b){
     matrix<T> tempa(a);
-    vec<T> tempb(b),x(b.size);
+    vec<T> tempb(b);
+    vec<T> x(b.size);
     //gaussian elimination to ref
     for(int i = 0; i < tempa.row;i++ ){
         for(int j = i+1; j <tempa.col;j++){
@@ -90,7 +91,11 @@ inline vec<T> lin_solver_np(matrix<T> a,vec<T> b){
             tempb.row_add(j,i,m);
         }
     }
+    tempa.printout();
+    tempb.printout();
+    x.printout();
     //back sub
+    //there is something going wrong with this back sub
     T sum = 0;
     for(int i = tempa.row-1; i>-1; i--){
         for(int j = tempa.row-1; j>i-1; j--){
@@ -103,6 +108,7 @@ inline vec<T> lin_solver_np(matrix<T> a,vec<T> b){
         x(i) = (tempb(i)-sum)/(tempa(i,i));
         sum = 0;
     }
+    x.printout();
     return x;
 };
 

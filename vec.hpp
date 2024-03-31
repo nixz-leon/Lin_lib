@@ -71,12 +71,14 @@ template <typename T> class vec{
 };
 template <typename T>
 vec<T>::vec(){
+    std::cout << "null_constructor\n";
     data = nullptr;
     size = 0;
 }
 template <typename T>
 vec<T>::vec(int n){
-    data = new T[n];
+    //data = new T[n];
+    data = (T*)std::calloc(n,sizeof(T));
     size = n;
 };
 template <typename T>
