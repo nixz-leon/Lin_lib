@@ -1,4 +1,5 @@
 #pragma once
+#define _USE_MATH_DEFINES
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -547,6 +548,17 @@ inline vec<T> pece(T (*f)(T,T), T h, T a, T b, vec<T> inital){
     return val;
 };
 
+template <typename T>
+inline void write_to_file(std::string filename, T b, T a, T h, vec<T> holder){
+    std::ofstream file;
+    file.open(filename);
+    for(int i =0; i < holder.size; i++){
+        file << a << ',' << holder(i) << '\n';
+        a+=h;
+    }
+    file.close();
+};
+
 // for the finite difference code, i will basically need to generate a matrix and then use my linear solver to get the results
 //to generate this matrix, the function that is being used as an input must return a vector of size 3, that corresponds:
 //p(xi), q(xi), r(xi)
@@ -593,8 +605,10 @@ inline vec<T> shot(vec<T> (*f)(T, vec<T>), T h, T a, T b, T y0, T yp){
     T t=a;
     vec<T> val(2);
     val = {y0, yp};
+    val.printout();
     for(int i = 1; i< results.size; i++){
         val = rk4(f, h, t, val);
+        //val.printout();
         results(i) = val(0);
         t+=h;
     }
@@ -607,23 +621,298 @@ inline vec<T> linear_shooting(vec<T> (*fg)(T, vec<T>),vec<T> (*fp)(T, vec<T>), T
     int its = int(((b-a)/h)+0.5);
     vec<T> low_vec(its+1), high_vec(its+1);
     T c = (y1-y0)/(b-a);
+    std::cout << "C: " << c << '\n';
+    
     low_vec = shot(fp, h, a, b, y0, (T)0);
     high_vec = shot(fg, h, a, b, (T)0, c);
+    low_vec.printout();
+    high_vec.printout();
     T scalar = (y1-low_vec.back())/high_vec.back();
     low_vec = low_vec + scalar*high_vec;
     return low_vec;
 }
 
+template <typename T>
+inline void write_to_file(std::string filename, T sb, T sa, T tb, T ta, T h, T k, int sk, int sh, vec<T> *holder){
+    std::ofstream file;
+    file.open(filename);
+    float min = 0, max = 0;
+    double temp_number;
+    for(int i = 0; i < sk; i++){
+        for(int j =0; j < holder[i].size;j++){
+            temp_number = holder[i](j);
+            if(temp_number > max){
+                max = temp_number;
+            }
+            if(temp_number < min){
+                min = temp_number;
+            }
+        }
+    }
+    
+    file << sb << ',' << sa << ',' << tb << ',' << ta <<  ',' << max << ',' << min << ',' << h << ',' << k << ',' << sk*sh << '\n';
+
+    for(int i =0; i < sk; i++){
+        file << (float)holder[i](0);
+        for(int j = 1; j < holder[i].size; j++){
+            file << ',' << (float)holder[i](j);
+        }
+        file <<'\n';
+    }
+    file.close();
+};
+
+template <typename T>
+inline void FTBS(T alpha, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec<T> bv, std::string filename){
+    int sk = ((tb-ta)/k)+0.5;sk++;
+    int sh = ((sb-sa)/h)+0.5;sh++;
+    T first = 1 - (alpha * (k/h));
+    T second = (alpha * (k/h));
+    vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0)); //place holder to write to file
+    matrix<T> step(sh,sh);
+    step(0,0) =1;
+
+    for(int i =1; i<sh;i++){
+        step(i,i) = first;
+        step(i,i-1) = second;
+    }
+    step.printout();
+    holder[0] = v0;
+    for(int i = 1; i < sk;i++){
+        holder[i] = step*holder[i-1];
+        holder[i](0) = bv(i);
+    }
+    holder[0].printout();
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
+}
+
+template <typename T>
+inline void FTFS(T alpha, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec<T> bv, std::string filename){
+    int sk = ((tb-ta)/k)+0.5;sk++;
+    int sh = ((sb-sa)/h)+0.5;sh++;
+    T first = 1 + (alpha * (k/h));
+    T second = -(alpha * (k/h));
+    vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0));
+    matrix<T> step(sh,sh);
+    step(0,0) =1;
+    for(int i =1; i<sh-1;i++){
+        step(i,i) = first;
+        step(i,i+1) = second;
+    }
+    step(sh-1,sh-1)= first;
+    holder[0] = v0;
+    for(int i = 1; i < sk;i++){
+        holder[i] = step*holder[i-1];
+        holder[i](0) = bv(i);
+    }
+    
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
+}
+template <typename T>
+inline void FTCS(T alpha, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec<T> bv, std::string filename){
+    int sk = ((tb-ta)/k)+0.5;sk++;
+    int sh = ((sb-sa)/h)+0.5;sh++;
+    T first = 1 - (alpha * (k/h));
+    T second = (alpha * (k/h));
+    vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0));
+    matrix<T> step(sh,sh);
+    step(0,0) =1;
+    for(int i =1; i<sh-1;i++){
+        step(i,i-1) = second*-0.5f;
+        step(i,i) = 1;
+        step(i,i+1) = second*0.5f;
+    }
+    step(sh-1,sh-1)= first;
+    step(sh-1,sh-2)= second;
+    holder[0] = v0;
+    for(int i = 1; i < sk;i++){
+        holder[i] = step*holder[i-1];
+        holder[i](0) = bv(i);
+    }
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
+}
+
+template <typename T>
+inline void FTCS_Heat(T alpha2, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec<T> bv, std::string filename){
+    int sk = ((tb-ta)/k)+0.5;sk++;
+    int sh = ((sb-sa)/h)+0.5;sh++;
+    T first = 1 - (2*alpha2 * (k/(h*h)));
+    T second = (alpha2 * (k/(h*h)));
+    vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0));
+    matrix<T> step(sh,sh);
+    for(int i = 1; i < sh-1;i++){
+        step(i,i-1) = second;
+        step(i,i) = first;
+        step(i,i+1) = second;
+    }
+    step(0,0) = first;
+    step(0,1) = second;
+    step(sh-1,sh-1) = first;
+    step(sh-1,sh-2) = second;
+    holder[0] = v0; 
+    step.printout();
+    for(int i = 1; i < sk; i++){
+        holder[i] = step*holder[i-1];
+    }
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
+}
 
 
-//matrix transpose
-//projection
-//orthagonalize vector
-//1,2,inf norms vect
-//1 and inf norm for mat
-//normalize
-//eigen value 
-//cubic spline 
-//numeric diff 
-//numeric int 
-//least squares
+template <typename T>
+inline void BTCS_Heat(T alpha2, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec<T> bv1, vec<T> bv2 ,std::string filename){
+    int sk = ((tb-ta)/k)+0.5;sk++;
+    int sh = ((sb-sa)/h)+0.5;sh++;
+    T first = 1 + (2*alpha2 * (k/(h*h)));
+    T second = -(alpha2 * (k/(h*h)));
+    vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0));
+    matrix<T> step(sh,sh);
+    for(int i = 1; i < sh-1;i++){
+        step(i,i-1) = second;
+        step(i,i) = first;
+        step(i,i+1) = second;
+    }
+    step(0,0) = first;
+    step(0,1) = second;
+    step(sh-1,sh-1) = first;
+    step(sh-1,sh-2) = second;
+    holder[0] = v0; 
+    for(int i = 1; i < sk; i++){
+        holder[i-1](0) = bv1(i-1);
+        holder[i-1](sh-1) = bv2(i-1); 
+        holder[i] = lin_solver(step,holder[i-1]);
+    }
+    holder[sk-1](0) = bv1(sk-1);
+    holder[sk-1](sh-1) = bv2(sk-1);
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
+}
+template <typename T>
+inline void Crank_Heat(T alpha2, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec<T> bv, std::string filename){
+    int sk = ((tb-ta)/k)+0.5;sk++;
+    int sh = ((sb-sa)/h)+0.5;sh++;
+    T first = 1 + (alpha2 * (k/(h*h)));
+    T second = -(alpha2 * (k/(h*h)))*0.5f;
+    T third = 1 - (alpha2 * (k/(h*h)));
+    T fourth = (alpha2 * (k/(h*h)))*0.5f;
+    vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0));
+    matrix<T> step(sh,sh);
+    matrix<T> step2(sh,sh);
+    for(int i = 1; i < sh-1;i++){
+        step(i,i-1) = second;
+        step(i,i) = first;
+        step(i,i+1) = second;
+        step2(i,i-1)= fourth;
+        step2(i,i) = third;
+        step2(i,i+1) = fourth;
+    }
+    step(0,0) = first;step(0,1) = second;
+    step(sh-1,sh-1) = first;step(sh-1,sh-2) = second;
+
+    step2(0,0) = third;step2(0,1) = fourth;
+    step2(sh-1,sh-1) = third;step2(sh-1,sh-2) = fourth;
+
+    holder[0] = v0; 
+    vec<T> temp_v(v0);//this is just some fancy stuff to basically make a copy, size and all
+    for(int i = 1; i < sk; i++){
+        temp_v = step2*holder[i-1];
+        holder[i] = lin_solver(step, temp_v);
+    }
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
+}
+
+
+
+template <typename T>
+inline vec<T> FTCS_Heat(T alpha2, T h, T k, T ta, int sk, T sa, int sh, vec<T> v0, vec<T> bv1, vec<T> bv2){
+    T first = 1 - (2*alpha2 * (k/(h*h)));
+    T second = (alpha2 * (k/(h*h)));
+    matrix<T> step(sh,sh);
+    for(int i = 1; i < sh-1;i++){
+        step(i,i-1) = second;
+        step(i,i) = first;
+        step(i,i+1) = second;
+    }
+    step(0,0) = first;
+    step(0,1) = second;
+    step(sh-1,sh-1) = first;
+    step(sh-1,sh-2) = second;
+    v0(0) = bv1(0);
+    v0(sh-1) = bv2(0);
+    return step*v0;
+}
+
+template <typename T>
+inline void Leap_Frog(T alpha2, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec<T> bv0, vec<T> bv1, std::string filename){
+    int sk = ((tb-ta)/k)+0.5;sk++;
+    int sh = ((sb-sa)/h)+0.5;sh++;
+    matrix<T> init(sh,sh);
+    matrix<T> step(sh,sh);
+    vec<T> *holder = (vec<T>*)calloc(sk, sizeof(v0));//holder for all the points
+    vec<T> temp(v0.size);
+    temp = FTCS_Heat(alpha2, -h, -k, ta, sk, sa, sh, v0, bv0, bv1);// for initalization, using a single step method backwards.
+    T first = -4 * alpha2 * (k/(h*h));
+    T second = 2 * alpha2 * (k/(h*h));
+    //generating the matrix 
+    step(0,0) = first;
+    step(0,1) = second;
+    for(int i = 1; i < sh-1;i++){
+        step(i,i-1) = second;
+        step(i,i) = first;
+        step(i,i+1) = second;
+    }
+
+    holder[0] = v0;
+    holder[1] = (step*v0) + temp; // first entry using our derived entry.
+    for(int i =2; i < sk; i++){
+        holder[i-1](0) = bv0(i);//boundry cons
+        holder[i-1](sh-1) = bv1(i); // boundry cons
+        holder[i] = (step*holder[i-1]) + holder[i-2];
+    }
+    holder[sk-1](0) = 0;
+    holder[sk-1](sh-1) = 0;
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
+
+}
+
+//false means derichlet 
+//true means von neuman boundary conditions
+template <typename T>
+inline void CTCS_wave(T c, T h, T sa, T sb, T k, T ta, T tb, vec<T> v0, vec<T> bv1, bool c1, vec<T> bv2, bool c2, std::string filename){
+    
+    int sk = ((tb-ta)/k)+0.5;sk++; //amount of total time steps 
+    int sh = ((sb-sa)/h)+0.5;sh++; //amount of total spacial steps 
+    matrix<T> step(sh,sh); //the step matrix
+    vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0)); //structure to store each step, don't stree about it
+    T fact = 2*h;
+    holder[0] = v0; //adding first iteration into the place holder
+    if(!c1){holder[0](0)=bv1(sk-1);}else{holder[0](0) = holder[0](1) - bv1(0)*fact;} //boundry condition stuffs 
+    if(!c2){holder[0](sh-1)=bv1(sk-1);}else{holder[0](sh-1) = holder[0](sh-2) + bv1(0)*fact;}
+
+    T first = c * c * (k/h) * (k/h); //adding the first constant
+    if(!c1){step(0,0) = 1;}else{step(0,1) = first;}
+    if(!c2){step(sh-1,sh-1) = 1;}else{step(sh-1,sh-2) = first;}
+    T second = 1 - first; //the second constant to avoid repetative compute
+    first*=0.5; //adjusting the frist constant
+
+
+    for(int i = 1; i < sh-1; i++){//generating the matrix 
+        step(i, i-1) = first;
+        step(i,i) = second;
+        step(i, i+1) = first;
+    }
+    holder[1] = (step*holder[0]); //+ (k*bv1);
+    step*=2;
+
+    if(!c1){step(0,0)=1;} //boundry condition stuffs
+    if(!c2){step(sh-1,sh-1)=1;}
+
+    for(int i = 2; i < sk; i++){ //each iteration 
+        if(!c1){holder[i-1](0)=bv1(sk-1);}else{holder[i-1](0) = holder[i-1](1) - bv1(i-1)*fact;} //boundry condition stuffs 
+        if(!c2){holder[i-1](sh-1)=bv1(sk-1);}else{holder[i-1](sh-1) = holder[i-1](sh-2) + bv1(i-1)*fact;}
+        holder[i] = step*holder[i-1] - holder[i-2];
+
+    }
+    if(!c1){holder[sk-1](0)=bv1(sk-1);}else{holder[sk-1](0) = holder[sk-1](1) - bv1(sk-1)*fact;} //boundry condition stuffs 
+    if(!c2){holder[sk-1](sh-1)=bv1(sk-1);}else{holder[sk-1](sh-1) = holder[sk-1](sh-2) + bv1(sk-1)*fact;}
+
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);//placing in a file to then graph
+}
