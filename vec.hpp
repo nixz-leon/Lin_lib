@@ -8,9 +8,10 @@
 #ifndef cstring
 #include <cstring>
 #endif
-//#ifndef matrix.hpp
-//#include "matrix.hpp"
-//#endif
+#ifndef ffteasyjj_cpp
+#include "ffteasyjj.cpp"
+#endif
+
 
 template<class T>
 struct _init_list_with_square_brackets {
@@ -31,12 +32,13 @@ template <typename T> class vec{
         vec(int n); //normal
         vec(const vec<T> &other);// copy
         vec<T>& operator=(vec<T>& other); //copy assigment
-        //vec<T>& operator=(vec<T> other);
         vec(vec<T> &&other) noexcept;//move
         vec<T>& operator=(vec<T>&& other) noexcept;// move assignment 
         vec<T> operator=(_init_list_with_square_brackets<T> other);
         T& operator()(int a);
         const T& operator()(int a)const;
+        inline void fft();
+        inline void ifft();
         ~vec();
         inline void printout();
         inline const T back();
@@ -49,6 +51,7 @@ template <typename T> class vec{
         inline vec<T> operator+=(vec<T> &other);
         inline vec<T> operator-=(vec<T> &other);
         inline vec<T> operator*=(T &c);
+        inline vec<T> operator++();
         inline void row_swap(int a, int b);
         inline void row_add(int a, int b, T fac);
 
@@ -67,7 +70,6 @@ template <typename T> class vec{
         inline friend vec<T> operator*(vec<T> a, T b){vec<T> temp(a);temp*=b;return temp;};
         inline friend vec<T> operator*(T a, vec<T> b){vec<T> temp(b);temp*=a;return temp;};
         inline friend vec<T> operator/(vec<T> a, T b){vec<T> temp(a);temp/=b;return temp;};
-
 };
 template <typename T>
 vec<T>::vec(){
@@ -77,8 +79,9 @@ vec<T>::vec(){
 }
 template <typename T>
 vec<T>::vec(int n){
-    //data = new T[n];
-    data = (T*)std::calloc(n,sizeof(T));
+    data = new T[n];
+    std::memset(data, 0, sizeof(T)*n);
+    //data = (T*)std::calloc(n,sizeof(T));
     size = n;
 };
 template <typename T>
@@ -97,13 +100,6 @@ inline vec<T> &vec<T>::operator=(vec<T> &other){
     }
     return *this;
 }
-/*
-template <typename T>
-inline vec<T> &vec<T>::operator=(vec<T> other){
-    std::memcpy(this->data,other.data, sizeof(T)*other.size);
-    return *this;
-};
-*/
 
 template <typename T>
 vec<T>::vec(vec<T> &&other)noexcept
@@ -143,6 +139,7 @@ inline vec<T> vec<T>::operator=(_init_list_with_square_brackets<T> other)
 template <typename T>
 inline T &vec<T>::operator()(int a)
 {
+    if(data == nullptr){std::cout << "no data to be accessed\n"; exit(0);}
     if(size == 0){std::cout << "empty vec\n";exit(0);}//checking if the object can be accessed in the first place 
     if(a > size-1){std::cout << "Tried to access elm " << a << ", But size is " << size-1 << '\n';exit(0);} // bounds checking
     return data[a];
@@ -150,9 +147,19 @@ inline T &vec<T>::operator()(int a)
 template <typename T>
 inline const T& vec<T>::operator()(int a) const
 {
+    if(data == nullptr){std::cout << "no data to be accessed\n"; exit(0);}
     if(size == 0){std::cout << "empty vec\n";exit(0);}//checking if the object can be accessed in the first place 
     if(a > size-1){std::cout << "Tried to access elm " << a << ", But size is " << size-1 << '\n';exit(0);} //bounds checking
     return data[a];
+}
+template <typename T>
+inline void vec<T>::fft(){
+    fftr1(this->data, this->size, 1);
+};
+
+template <typename T>
+inline void vec<T>::ifft(){
+    fftr1(this->data, this->size, -1);
 };
 
 template <typename T>
@@ -218,6 +225,11 @@ inline vec<T> vec<T>::operator*=(T &c)
         this->data[i] *= c;
     }
     return *this;
+}
+template <typename T>
+inline vec<T> vec<T>::operator++()
+{
+    for(int i =0; i < this->size; i++){
+        this->data[i]++;
+    }
 };
-
-

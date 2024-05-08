@@ -8,6 +8,9 @@
 #ifndef cstring
 #include <cstring>
 #endif
+#ifndef vec_hpp
+#include "vec.hpp"
+#endif
 
 
 template <typename T> class matrix{
@@ -16,7 +19,6 @@ template <typename T> class matrix{
         matrix(int n, int m); //normal
         matrix(const matrix<T> &other);// copy
         matrix<T>& operator=(matrix<T>& other); //copy assigment
-        //matrix<T>& operator=(matrix<T> other);
         matrix(matrix<T> &&other) noexcept;//move
         matrix<T>& operator=(matrix<T>&& other) noexcept;// move assignment 
         T& operator()(int row, int col);
@@ -34,32 +36,39 @@ template <typename T> class matrix{
         inline void row_add(int a, int b, T fac); 
         inline matrix<T> operator/=(T c);
         inline matrix<T> operator *=(T c);
+        inline vec<T> operator*(vec<T> b);
 
+        inline friend vec<T> vectorize(matrix<T> a){
+            vec<T> temp(a.col * a.row);
+            for(int i = 0; i < a.col; i++){
+                for(int j = 0; j < a.row; j++){
+                    temp((i*a.row)+j) = a(j,i);
+                }
+            }
+            return temp;
+        };
 
         inline friend matrix<T> operator+(matrix<T> a, matrix<T> b){
             if((a.col!=b.col)||(a.row!=b.row)){std::cout << "Tried to add a " << a.row << ','<<a.col<< " matrix with a " << b.row << ',' << b.col << " matrix\n";exit(0);}
-            matrix temp(&a);
+            matrix temp(a);
             for(int i =0; i < a.row;i++){for(int j = 0; j < a.col;j++){temp(i,j)=a(i,j)+b(i,j);}}
             return temp;
         };
         inline friend matrix<T> operator-(matrix<T> a, matrix<T> b){
             if((a.col!=b.col)||(a.row!=b.row)){std::cout << "Tried to subtract a " << b.row << ','<<b.col<< " matrix from a " << a.row << ',' << a.col << " matrix\n";exit(0);}
-            matrix temp(&a);
+            matrix temp(a);
             for(int i =0; i < a.row;i++){for(int j = 0; j < a.col;j++){temp(i,j)=a(i,j)-b(i,j);}}
             return temp;
         };
         inline friend matrix<T> operator*(matrix<T> a, matrix<T> b){
-            if((a.cols!=b.rows)){std::cout << "Tried to multiply a " << a.row << ','<<a.col<< " matrix by a " << b.row << ',' << b.col << " matrix\n";exit(0);}
-            matrix<T> temp(&a);
-            for(int i = 0; i < a.rows; i++){for(int j = 0; j < b.cols; j++){for(int k=0; k < b.rows; k++ ){temp(i,j) += a(i,k)*b(k,j);}}}
+            if((a.col!=b.row)){std::cout << "Tried to multiply a " << a.row << ','<<a.col<< " matrix by a " << b.row << ',' << b.col << " matrix\n";exit(0);}
+            matrix<T> temp(a);
+            for(int i = 0; i < a.row; i++){for(int j = 0; j < b.col; j++){for(int k=0; k < b.row; k++ ){temp(i,j) += a(i,k)*b(k,j);}}}
             return temp;
         };
-        inline friend matrix<T> operator*(matrix<T> a, T b){matrix<T>temp(&a);for(int i =0; i < a.row;i++){for(int j =0; j<a.col;j++){temp = a(i,j)*b;}}return temp;};
-        inline friend matrix<T> operator*(T b, matrix<T> a){matrix<T>temp(&a);for(int i =0; i < a.row;i++){for(int j =0; j<a.col;j++){temp =a(i,j)*b;}}return temp;};
-
+        inline friend matrix<T> operator*(matrix<T> a, T b){matrix<T>temp(a); temp*=b;return temp;};
+        inline friend matrix<T> operator*(T b, matrix<T> a){matrix<T>temp(a); temp*=b;return temp;};
 };
-
-
 
 template <typename T>
 matrix<T>::matrix(){
@@ -69,8 +78,9 @@ matrix<T>::matrix(){
 }
 template <typename T>
 matrix<T>::matrix(int n, int m){
-    //data = new T[n*m];
-    data = (T*)std::calloc(n*m,sizeof(T));
+    data = new T[n*m];
+    std::memset(data, 0, sizeof(T)*n*m);
+    //data = (T*)std::calloc(n*m,sizeof(T));
     row = n;
     col = m;
 };
@@ -88,15 +98,9 @@ inline matrix<T> &matrix<T>::operator=(matrix<T> &other){
     std::memcpy(this->data, other.data, sizeof(T)*other.col*other.row);
     return *this;
 }
-/*template <typename T>
-inline matrix<T> &matrix<T>::operator=(matrix<T> other){
-    std::memcpy(this->data, other.data, sizeof(T)*other.col*other.row);
-    return *this;
-};
-*/
 
 template <typename T>
-matrix<T>::matrix(matrix<T> &&other) noexcept: data(nullptr), row(0),col(0){
+matrix<T>::matrix(matrix<T> &&other) noexcept:row(0),col(0),data(nullptr){
     data = other.data; // reassigning ownership of pointer
     row = other.row; // redefining rows
     col = other.col; 
@@ -121,6 +125,7 @@ inline matrix<T> &matrix<T>::operator=(matrix<T> &&other)noexcept{
 template <typename T>
 inline T &matrix<T>::operator()(int r, int c)
 {
+    if(data == nullptr){std::cout << "no data to be accessed\n"; exit(0);}
     if(row*col == 0){std::cout << "empty matrix\n";exit(0);}//checking if the object can be accessed in the first place 
     if((r > row-1)||(c > col-1)){std::cout << "Tried to access elm " << r << ',' << c << ", But size is " << row << ',' << col << '\n';exit(0);} // bounds checking
     if(r < 0){std::cout << "tried to access row " << r << " which is negative\n";}
@@ -130,6 +135,7 @@ inline T &matrix<T>::operator()(int r, int c)
 template <typename T>
 inline const T &matrix<T>::operator()(int r, int c) const
 {
+    if(data == nullptr){std::cout << "no data to be accessed\n"; exit(0);}
     if(row*col == 0){std::cout << "empty matrix\n";exit(0);}//checking if the object can be accessed in the first place 
     if((r > row-1)||(c > col-1)){std::cout << "Tried to access elm " << r << ',' << c << ", But size is " << row << ',' << col << '\n';exit(0);} // bounds checking
     if(r < 0){std::cout << "tried to access row " << r << " which is negative\n";}
@@ -148,6 +154,7 @@ inline void matrix<T>::printout()
             }
         std::cout << '\n';
         }
+        std::cout << '\n';
     }
 }
 template <typename T>
@@ -205,3 +212,20 @@ inline matrix<T> matrix<T>::operator*=(T c)
     return *this;
 }
 
+template <typename T>
+inline vec<T> matrix<T>::operator*(vec<T> b)
+{
+    //need to write the checks
+    if(this->data == nullptr){std::cout << "matrix is empty\n";exit(0);}
+    if(b.size != this->col){std::cout << "tried to multiply a matrix of size: " << this->row << ',' << this->col << "with a vector of size " << b.size << "\n"; exit(0);}
+    vec<T> temp(b.size);
+    T sum=0;
+    for(int i = 0; i<temp.size;i++){
+        sum=0;
+        for(int j = 0; j<temp.size;j++){
+            sum += this->data[(i*col)+j]*b(j);
+        }
+        temp(i) = sum;
+    }
+    return temp; 
+}

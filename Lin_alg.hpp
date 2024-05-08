@@ -5,13 +5,11 @@
 #include <vector>
 #include <cmath>
 #include <string>
-#include<cstdlib>
+#include <cstdlib>
 #include <chrono>
 
 #include "vec.hpp"
 #include "matrix.hpp"
-//next step is to add a second optional arg to the template, which i will expand on in a different file for 2by2 3by3 4by4 matricies, I won't add the implimentation just yet, however 
-
 
 template <typename T> 
 inline void gausian_reduction(matrix<T> &a){
@@ -870,7 +868,6 @@ inline void Leap_Frog(T alpha2, T h, T k, T ta, T tb, T sa, T sb, vec<T> v0, vec
     holder[sk-1](0) = 0;
     holder[sk-1](sh-1) = 0;
     write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);
-
 }
 
 //false means derichlet 
@@ -880,6 +877,7 @@ inline void CTCS_wave(T c, T h, T sa, T sb, T k, T ta, T tb, vec<T> v0, vec<T> b
     
     int sk = ((tb-ta)/k)+0.5;sk++; //amount of total time steps 
     int sh = ((sb-sa)/h)+0.5;sh++; //amount of total spacial steps 
+    std::cout << sh << '\n';
     matrix<T> step(sh,sh); //the step matrix
     vec<T> *holder = (vec<T>*)calloc( sk, sizeof(v0)); //structure to store each step, don't stree about it
     T fact = 2*h;
@@ -915,4 +913,113 @@ inline void CTCS_wave(T c, T h, T sa, T sb, T k, T ta, T tb, vec<T> v0, vec<T> b
     if(!c2){holder[sk-1](sh-1)=bv1(sk-1);}else{holder[sk-1](sh-1) = holder[sk-1](sh-2) + bv1(sk-1)*fact;}
 
     write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, holder);//placing in a file to then graph
+}
+
+template <typename T>
+inline void write_to_file(std::string filename, T sb, T sa, T tb, T ta, T h, T k, int sk, int sh, matrix<T> holder){
+    std::ofstream file;
+    file.open(filename);
+    float min = 0, max = 0;
+    double temp_number;
+    holder.printout();
+    std::cout << holder.col << " vs " << sk << '\n';
+    std::cout << holder.row << " vs " << sh << '\n';
+    for(int i = 0; i < holder.col; i++){
+        for(int j =0; j < holder.row;j++){
+            temp_number = holder(j,i);
+            if(temp_number > max){
+                max = temp_number;
+            }
+            if(temp_number < min){
+                min = temp_number;
+            }
+        }
+    }
+    std::cout << "Max: " << max << ", Min: " << min << '\n';
+    
+    file << sb << ',' << sa << ',' << tb << ',' << ta <<  ',' << max << ',' << min << ',' << h << ',' << k << ',' << sk*sh << '\n';
+
+    for(int i =0; i < holder.col; i++){
+        file << (float)holder(0, i);
+        for(int j = 1; j < holder.row; j++){
+            file << ',' << (float)holder(j, i);
+        }
+        file <<'\n';
+    }
+    file.close();
+}
+
+template <typename T>
+inline matrix<T> to_mat(vec<T> in, int n, int m){
+    matrix<T> a(n,m);
+    for(int i = 0; i < a.col; i++){
+        for(int j = 0; j < a.row; j++){
+            a(j,i) = in((i*a.row)+j);
+        }
+    }
+    return a;
+}
+
+
+//This version is assuming Dirichlet conditons
+//h, step in x, sa start in x, sb end in x
+//k, step in t, ta start in t, tb end in t
+//v0, values at t = 0 along x, v1, values at end of time domain along x
+//bv0,  values at x = 0 along t, bv1 values at end of space domain along t
+//Filename, resultant file
+template<typename T>
+inline matrix<T> laplace_CTCS(T h, T sa, T sb, T k, T ta, T tb, vec<T> v0, vec<T> v1,vec<T> bv0, vec<T> bv1, std::string filename){
+    int sh = (int)(((sb-sa)/h)+0.5)+1; //number of steps in space
+    int sk = (int)(((tb-ta)/k)+0.5)+1; //number of steps in time
+    vec<T> b(1);
+    matrix<T> temp_sol(sh, sk); //generating the boundry conditions
+    for(int i =0; i < sk; i++){
+        temp_sol(0,i) = bv0(i); //left and right edges of the matrix
+        temp_sol(sh-1,i) = bv1(i);
+    }
+    for(int i =0; i < sh; i++){//top and bottom edges of the matrix
+        temp_sol(i,0) = v0(i);
+        temp_sol(i,sk-1) = v1(i);
+    }
+    b = vectorize(temp_sol);//turning the matrix into a vector, of columns stacked on to each other
+    matrix<T> a(b.size, b.size);
+    for(int i = 0; i < b.size; i++){
+        a(i,i) = 1;
+    }
+    T const1 = 2*(1 + (k*k)/(h*h));
+    T const2 = -1*((k*k)/(h*h));
+    //this needs to be redone, based on known values;
+    for(int i = (sh+1); i < (b.size-(sh+1)); i+=sh){//this loops through each column
+        for(int j = 0; j <sh-2;j++){//this inner one fills in for the unknown entries
+            a(i+j,i+j) = const1;
+            a(i+j,i+j-1) = const2;
+            a(i+j,i+j+1) = const2;
+            a(i+j,i+j-sh) = -1;
+            a(i+j,i+j+sh) = -1;
+        }
+    }
+    a.printout();
+    matrix<T> solution(1,1);
+    solution = to_mat(lin_solver(a,b), sh, sk);
+    write_to_file(filename, sb,sa,tb,ta,h,k,sk, sh, solution);
+    return solution;
+};
+
+
+
+template <typename T>
+static vec<T> slowHT(vec<T> input)
+{
+    vec<T> copy(0),out(0);
+    copy = input;
+    out = input;
+    T n = input.size;
+    for(int k=0; k<n; ++k){
+	    input(k)= 0.0;
+	    for(int i=0; i<input.size; ++i){
+            float angle = 2*M_PI*i*k/(T)(n);
+            out(k) += copy(i)*(cos(angle)+sin(angle));
+	    }
+    }
+    return out;
 }
